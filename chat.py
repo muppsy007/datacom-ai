@@ -7,6 +7,7 @@ Conversations are stored in a SQLite database located at CHAT_DB_PATH
 import os
 import sqlite3
 import sys
+import time
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -49,22 +50,50 @@ def main():
         }]
         messages += message_history
 
+        # Start recording time for latency
+        start = time.perf_counter()
+
         # Setup the OpenAI stream
         stream = client.chat.completions.create(
             model=config.model_name,
             messages=messages,
-            stream=True
+            stream=True,
+            stream_options={"include_usage": True}
         ) #type: ignore[call-overload]
 
         response = ""
+        usage = None
         console.print("[yellow]ChatBot: ", end="")
         for chunk in stream:
+            if not chunk.choices:
+                if chunk.usage:
+                    usage = chunk.usage
+                continue
             token = chunk.choices[0].delta.content
             if token is not None:
                 console.print(token, end="", markup=False)
                 response += token
-        console.print()
+
+        # Get total time spent with LLM request
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Work out cost based on fixed per/million cost
+        # Refer https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        if usage:
+            cost = (usage.prompt_tokens * 2.50 + usage.completion_tokens * 10.00) / 1_000_000
+
+            # Build the usage line and output
+            stats = (
+                f"[stats] prompt={usage.prompt_tokens} "
+                f"completion={usage.completion_tokens} "
+                f"cost=USD${cost:.6f} "
+                f"latency={elapsed_ms:.0f}ms"
+            )
+            console.print(stats, style="dim")
+
+        # Save the message and print and empty line for the next "You:" prompt
         save_message(conn, "assistant", response)
+        console.print()
 
 # Pull out env variables. Return OpenAI client and a custom Config object for other Config
 def bootstrap() -> tuple[OpenAI, Config]:
