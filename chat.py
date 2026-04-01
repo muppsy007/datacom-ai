@@ -11,9 +11,12 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from rich.console import Console
+from rich.prompt import Prompt
 
 console = Console()
+prompt = Prompt()
 
 @dataclass
 class Config:
@@ -25,15 +28,43 @@ def main():
     conn = init_db(config.db_path)
     
     while True :
-        user_input = input("You: ")
+        user_input = prompt.ask("[cyan]You")
         if user_input.strip().lower() in ("quit", "exit"):
             console.print("[bold red]User exited. Goodbye")
             break
-
+        
+        # Save the user message
         save_message(conn, "user", user_input)
+        
+        # Get the message history
         message_history = load_messages(conn)
 
-        console.print(message_history)
+        # Build the system prompt
+        messages: list[ChatCompletionMessageParam] = [{
+            "role": "system", 
+            "content": (
+                "You are an exuberant and helpful chat assistant. "
+                "Keep your responses short and concise"
+            ),
+        }]
+        messages += message_history
+
+        # Setup the OpenAI stream
+        stream = client.chat.completions.create(
+            model=config.model_name,
+            messages=messages,
+            stream=True
+        ) #type: ignore[call-overload]
+
+        response = ""
+        console.print("[yellow]ChatBot: ", end="")
+        for chunk in stream:
+            token = chunk.choices[0].delta.content
+            if token is not None:
+                console.print(token, end="", markup=False)
+                response += token
+        console.print()
+        save_message(conn, "assistant", response)
 
 # Pull out env variables. Return OpenAI client and a custom Config object for other Config
 def bootstrap() -> tuple[OpenAI, Config]:
@@ -43,6 +74,7 @@ def bootstrap() -> tuple[OpenAI, Config]:
     base_url = os.getenv("OPENAI_BASE_URL")
     model_name = os.getenv("MODEL_NAME")
 
+    # Exit early if required env vars are not present
     if not api_key:
         sys.exit("Error: OPENAI_API_KEY is not set. See .env.example")
     if not base_url:
@@ -78,7 +110,7 @@ def save_message(conn: sqlite3.Connection, role: str, content: str) -> None:
     conn.commit()
 
 # Load the last n messages from the database to send as context with the prompt
-def load_messages(conn: sqlite3.Connection, limit: int = 10) -> list[dict[str, str]]:
+def load_messages(conn: sqlite3.Connection, limit: int = 10) -> list[ChatCompletionMessageParam]:
     cursor = conn.execute(
         "SELECT role, content FROM messages ORDER BY id DESC LIMIT ?", (limit,)
     )

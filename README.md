@@ -17,6 +17,7 @@ TBC
   * Chroma for vectors only
   * Avoid Postgres and pgvector (which could do both) to make stretch task Docker setup simpler 
 * Database is stored in root rather than in a directory to avoid permission problems for the assessor
+* Commits direct to main instead of branch/rebase solely to avoid unnecessary ceremony
 
 ## Potential improvements
 * In a production system, we might consider a rolling summary buffer so earlier context than N is not completely omitted from future prompts.
