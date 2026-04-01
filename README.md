@@ -16,6 +16,7 @@ TBC
   * SQLite for chat and other relational storage
   * Chroma for vectors only
   * Avoid Postgres and pgvector (which could do both) to make stretch task Docker setup simpler 
+* Database is stored in root rather than in a directory to avoid permission problems for the assessor
 
 ## Potential improvements
 * In a production system, we might consider a rolling summary buffer so earlier context than N is not completely omitted from future prompts.

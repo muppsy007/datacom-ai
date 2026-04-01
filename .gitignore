@@ -7,8 +7,9 @@ wheels/
 *.egg-info
 .ruff_cache/
 
-# Sensitive configs
+# Sensitive stuff
 .env
+chat.db
 
 # Virtual environments
 .venv
