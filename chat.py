@@ -80,6 +80,7 @@ def main():
         # Work out cost based on fixed per/million cost
         # Refer https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
         if usage:
+            # In a situation where we have multiple models, these prices should go in a dict
             cost = (usage.prompt_tokens * 2.50 + usage.completion_tokens * 10.00) / 1_000_000
 
             # Build the usage line and output
