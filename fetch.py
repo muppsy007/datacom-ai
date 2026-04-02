@@ -45,6 +45,7 @@ def main():
                 "id": source.id,
                 "title": source.title,
                 "path": str(path),
+                "file_extension": source.file_extension,
                 "source_type": source.source_type,
                 "size_bytes": path.stat().st_size,
                 "fetched_at": datetime.now(UTC).isoformat(),

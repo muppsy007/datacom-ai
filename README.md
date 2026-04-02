@@ -30,6 +30,7 @@ This demo will address a Technical Assessment by building the following features
 **Task 3.2**
 * Example document "Star Wars — Revenge of the Sith" is partially hidden behind a login. 
 * I had to free e-books from Project Gutenberg (https://gutenberg.org/) and large PDF docs from US govt sources to find 50M of corpus
+* Use sentence-transformers local all-MiniLM-L6-v2 model for embeddings for initial development (zero cost, but slower)
 
 ## Potential improvements
 * In a production system, we might consider a rolling summary buffer so earlier context than N is not completely omitted from future prompts.
