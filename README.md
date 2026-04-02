@@ -9,9 +9,11 @@ This demo will address a Technical Assessment by building the following features
 5. [Optional] Containerised evaluation dashboard for latency, cost, retrieval accuracy, and agent performance.
 
 ## How to use
-**Task 3.1:**
+**Task 3.1**
 
-From project root, run `python chat.py` and start a conversation. Confirm running context by stating your first name and asking the LLM to recall your name a few messages later.
+* From project root, run `python chat.py` and start a conversation. 
+* Note usage data after each reply. 
+* Confirm sliding window context by stating your first name and asking the LLM to recall your name a few messages later.
 
 ## Intentional choices
 **Global**
@@ -24,6 +26,10 @@ From project root, run `python chat.py` and start a conversation. Confirm runnin
 **Task 3.1**
 * Chat database is stored in project root rather than in a directory to avoid permission problems for the assessor
 * LLM $ rates per million are hard coded in chat.py but would ideally be abstracted out to a dict so changing model would not require business logic change.
+
+**Task 3.2**
+* Example document "Star Wars — Revenge of the Sith" is partially hidden behind a login. 
+* I had to free e-books from Project Gutenberg (https://gutenberg.org/) and large PDF docs from US govt sources to find 50M of corpus
 
 ## Potential improvements
 * In a production system, we might consider a rolling summary buffer so earlier context than N is not completely omitted from future prompts.

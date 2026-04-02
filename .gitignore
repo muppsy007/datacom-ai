@@ -10,6 +10,7 @@ wheels/
 # Sensitive stuff
 .env
 chat.db
+data/
 
 # Virtual environments
 .venv
