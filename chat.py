@@ -112,8 +112,8 @@ def bootstrap() -> tuple[OpenAI, Config]:
     if not model_name:
         sys.exit("Error: MODEL_NAME is not set. See .env.example")
 
-    # DEFAULT - if env value for db path is not set, use "chat.db"
-    db_path = os.getenv("CHAT_DB_PATH") or "chat.db"
+    # DEFAULT - if env value for db path is not set, use "metrics.db"
+    db_path = os.getenv("CHAT_DB_PATH") or "metrics.db"
 
     client = OpenAI(api_key=api_key, base_url=base_url)
     config = Config(db_path=db_path, model_name=model_name)

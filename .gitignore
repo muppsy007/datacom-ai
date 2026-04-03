@@ -9,7 +9,7 @@ wheels/
 
 # Sensitive stuff
 .env
-chat.db
+metrics.db
 data/
 
 # Virtual environments
