@@ -32,7 +32,7 @@ def evaluate(question_path: str = "eval/questions.json") -> None:
         returned_source_ids = [meta["source_id"] for meta in results["metadatas"][0]] # type: ignore
         
         # A pass is if the expected source is found in at least one of the result sources
-        passed = any(sid in returned_source_ids for sid in question["source_id"])
+        passed = source_matched(question, results)
         if passed:
             total_passed += 1
 
@@ -45,6 +45,10 @@ def evaluate(question_path: str = "eval/questions.json") -> None:
     recall_score = (total_passed / total_questions) 
     console.print(table)
     console.print(f"[bold red]recall@5 score: {recall_score:.2%}")
+
+def source_matched(question: dict[str, Any], results: Any) -> bool:
+    returned_source_ids = [meta["source_id"] for meta in results["metadatas"][0]]
+    return any(sid in returned_source_ids for sid in question["source_id"])
 
 def load_questions(path: Path) -> list[dict[str, Any]]:
     with open(path) as f:
