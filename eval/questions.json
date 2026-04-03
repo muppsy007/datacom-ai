@@ -28,5 +28,7 @@
     {"question": "What is the name of the horse Don Quixote rides?", "source_id": ["don_quixote"]},
     {"question": "Who was Raskolnikov's landlady?", "source_id": ["crime_and_punishment"]},
     {"question": "What does Ishmael say is a substitute for pistol and ball when he feels grim about the mouth?", "source_id": ["moby_dick"]},
-    {"question": "Who does Pierre Bezukhov marry at the end of War and Peace?", "source_id": ["war_and_peace"]}
+    {"question": "Who does Pierre Bezukhov marry at the end of War and Peace?", "source_id": ["war_and_peace"]},
+    {"question": "What is the optimal tyre pressure for a Holden Colorado?", "source_id": ["holden_my19_colorado_manual"]},
+    {"question": "How much oil do I put in my Colorado 2.8 diesel?", "source_id": ["holden_my19_colorado_manual"]}
   ]

@@ -23,11 +23,19 @@ class Source:
     id: str
     url: str
     title: str
-    source_type: Literal["gutenberg", "mrmuellersworld", "govinfo"]
+    source_type: Literal["gutenberg", "mrmuellersworld", "govinfo", "holden"]
     min_bytes: int  
     file_extension: str                        
 
 SOURCES = [
+    Source(
+        id="holden_my19_colorado_manual",
+        url="https://www.holden.com.au/content/dam/holden/oc/au/en/index/owning/my-connect/colorado-entertainment/02-pdfs/my19-colorado-owner-manual-1237048790663.pdf",
+        title="Holden Colorado MY19 User Manual",
+        source_type="holden",
+        min_bytes=3_500_000,
+        file_extension=".pdf",
+    ),
     Source(
         id="fellowship_pdf",
         url="https://www.mrsmuellersworld.com/uploads/1/3/0/5/13054185/lord-of-the-rings-01-the-fellowship-of-the-ring_full_text.pdf",
