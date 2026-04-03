@@ -49,7 +49,7 @@ def main():
 
         system_prompt = (
             "You are a helpful assistant. Answer the question using ONLY the provided context. "
-            "If the context does not contain enough information to answer, say "
+            "If the answer cannot be found in the context, say "
             "'I don't have enough information in my corpus to answer that question.' "
             "Do not use any knowledge outside the provided context."
         )
