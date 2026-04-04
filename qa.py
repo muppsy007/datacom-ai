@@ -49,7 +49,7 @@ def main():
             start = time.time()
 
             system_prompt = (
-                "You are a helpful assistant. Answer the question us"
+                "You are a helpful assistant. Answer the question provided by the user"
                 "If the answer cannot be found in the context, say "
                 "'I don't have enough information in my corpus to answer that question.' "
                 "Do not use any knowledge outside the provided context."

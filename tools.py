@@ -6,13 +6,14 @@ to use and process during it's planning.
 import json
 import random
 
+from openai.types.chat import ChatCompletionToolParam
 from typing import Any
 
 # Mock inbound and outbound flights API
 def search_flights(origin: str, destination: str, date: str) -> dict[str, Any]:
     # Add a seed to make the random pricing more deterministic
-    # In reality this is just saving us from writing 5 full blocks
-    random.seed(42)
+    # In reality this is just saving us from writing 5 full blocks per param combo
+    random.seed(hash(origin + destination + date))
     
     carriers = [                                                                                                                              
           ("NZ301", "Air New Zealand", "07:00", "08:05", 65),                                                                                   
@@ -95,7 +96,7 @@ def search_attractions(location: str) -> dict[str, Any]:
     ]           
     return {"location": location, "attractions": attractions}
 
-TOOL_SCHEMAS: list[dict[str,Any]] = [
+TOOL_SCHEMAS: list[ChatCompletionToolParam] = [
     {                                                                                                                                         
         "type": "function",
         "function": {                                                                                                                         
@@ -153,13 +154,58 @@ TOOL_SCHEMAS: list[dict[str,Any]] = [
                 "required": ["location"],
             },                                                                                                                                
         },      
-    },                                                                                         
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "calculate_total",
+            "description": "Sum costs of selected items and check against budget. Returns the item to remove if over budget.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "cost_nzd": {"type": "number"},
+                            },
+                            "required": ["name", "cost_nzd"],
+                        },
+                        "description": "List of selected flights and activities with their names and costs",
+                    },
+                    "budget_nzd": {
+                        "type": "number",
+                        "description": "The budget in NZD to check against",
+                    },
+                },
+                "required": ["items", "budget_nzd"],
+            },
+        },
+    },
 ]
 
-TOOLS: dict[str,Any] = {       
-    "search_flights": search_flights,                                                                                                         
+def calculate_total(items: list[dict[str, Any]], budget_nzd: float) -> dict[str, Any]:
+    """Sum costs of named items and identify what to remove if over budget."""
+    total = round(sum(item["cost_nzd"] for item in items), 2)
+    over_budget = total > budget_nzd
+    most_expensive = max(items, key=lambda x: x["cost_nzd"]) if over_budget else None
+    return {
+        "total_nzd": total,
+        "budget_nzd": budget_nzd,
+        "constraint_satisfied": not over_budget,
+        "remaining_nzd": round(budget_nzd - total, 2),
+        "remove_item": most_expensive["name"] if most_expensive else None,
+        "approved_items": items,
+    }
+
+
+TOOLS: dict[str, Any] = {
+    "search_flights": search_flights,
     "get_weather": get_weather,
     "search_attractions": search_attractions,
+    "calculate_total": calculate_total,
 }
 
 def dispatch_tool(name:str, arguments_json: str)-> str:
