@@ -14,7 +14,9 @@ def init_db(db_path: str)-> sqlite3.Connection:
             tools_used TEXT,
             tokens_used INTEGER,
             est_cost_usd FLOAT,
+            itinerary_actual_cost_nzd FLOAT,
             constraint_satisfied INTEGER,
+            scratchpad TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )              
     """)
@@ -27,12 +29,14 @@ def log_run(
     tools: str, 
     token_count: int, 
     estimated_cost: float,
-    constraint_satisfied: int
+    itinerary_actual_cost_nzd: float,
+    constraint_satisfied: int,
+    scratchpad: str
 )-> None:
     conn.execute(
         """INSERT INTO agent_runs                                                                                                             
-             (prompt, tools_used, tokens_used, est_cost_usd, constraint_satisfied)                                                              
-             VALUES (?, ?, ?, ?, ?)""", 
-        (prompt, tools, token_count, estimated_cost, constraint_satisfied)
+             (prompt, tools_used, tokens_used, est_cost_usd, constraint_satisfied, scratchpad, itinerary_actual_cost_nzd)                                                              
+             VALUES (?, ?, ?, ?, ?, ?, ?)""", 
+        (prompt, tools, token_count, estimated_cost, constraint_satisfied, scratchpad, itinerary_actual_cost_nzd)
     )
     conn.commit()

@@ -6,13 +6,14 @@ the user with the optimal travel plan.
 """
 import json
 import os
+import re
 
 import dotenv
 from openai import OpenAI
 from typing import Any
 from rich.console import Console
 
-from tools import TOOL_SCHEMAS, dispatch_tool
+from travel_agent_tools import TOOL_SCHEMAS, dispatch_tool
 
 dotenv.load_dotenv()
 console = Console()
@@ -76,29 +77,7 @@ ITINERARY_SCHEMA: dict[str, Any] = {
     "notes": "string"
 }
 
-def run_agent(prompt: str, budget_nzd: float, db_path: str) -> str:
-    # system_prompt = (
-    #     "You are a travel planner assistant. The user will provide a brief travel plan and you "
-    #     "will use tools to plan a trip within the user's location, date and budget constraints. "
-    #     "You must use <scratchpad>...</scratchpad> blocks to show reasoning before each tool call. "
-    #     "You must track costs as you go and respect budget constraints. "
-    #     "You must select exactly one outbound and exactly one return flight. "
-    #     "You must select at least one attraction per day of the trip. "
-    #     "Before producing the final JSON, you must call calculate_total "
-    #     "with the cost_nzd of every selected flight and activity and the budget. "                                                                    
-    #     "If constraint_satisfied is false, remove the most expensive activity "                                                                       
-    #     "and call calculate_total again. Repeat until constraint_satisfied is true "                                                                  
-    #     "or no activities remain. Use the returned total_nzd as actual_cost_nzd "                                                                     
-    #     "and constraint_satisfied in the final JSON. "
-    #     "If budget is exceeded, you must remove activities to bring budget down. "
-    #     "You may repeat flight search to bring total cost under budget. "
-    #     "When you have enough information to respond, you must respond with a single JSON block "
-    #     "with nothing else and no prose around it. The schema for this JSON response is as follows:"
-    #     "Before producing the final JSON, you must use a <scratchpad> to add up costs: "                                                              
-    #     "list each selected item and its cost_nzd, sum them, compare to budget, then set "                                                            
-    #     "actual_cost_nzd to that exact sum and constraint_satisfied accordingly. "
-    #     + json.dumps(ITINERARY_SCHEMA, indent=2)
-    # )
+def run_agent(prompt: str, budget_nzd: float, db_path: str) -> dict[str, Any]:
     system_prompt = (                                                                                                                             
         "You are a travel planning agent. Follow these steps in order:\n"                                                                     
         "1. Call search_flights for the outbound leg (origin to destination).\n"                                                              
@@ -114,16 +93,17 @@ def run_agent(prompt: str, budget_nzd: float, db_path: str) -> str:
         "Assign realistic times based on flight arrival times and activity durations.\n"
         "6. Call calculate_total with every selected item — the two flights and all activities — "
         "using the exact same cost_nzd values you will put in the final JSON. "
+        "Name flights as 'outbound: FLIGHTNUMBER' and 'return: FLIGHTNUMBER' so they are clearly distinguished. "
         "Each item must have a 'name' and 'cost_nzd'.\n"
-        "7. If constraint_satisfied is false, remove only the activity named in remove_item from the days array. "
-        "Do not change flight selections. "
+        "7. If constraint_satisfied is false, remove only the activity named in remove_item. "
+        "You may only remove a flight if it is replaced with a cheaper flight. "
         "Call calculate_total again with the updated list. "
         "If constraint_satisfied is now true, stop immediately — do not remove any more activities. "
         "Only continue removing if constraint_satisfied is still false.\n"
         "8. The flights and activities in the final JSON must use the exact cost_nzd values from approved_items "
         "in the final calculate_total response — do not use any other values. "
         "Use total_nzd as actual_cost_nzd and constraint_satisfied from the final calculate_total response.\n"
-        "9. Output the JSON block exactly once and nothing else. "
+        "9. Output raw JSON only — no markdown, no code fences, no extra text. "
         "The schema is:\n"                                                                                                                    
         + json.dumps(ITINERARY_SCHEMA, indent=2)
     )   
@@ -135,6 +115,7 @@ def run_agent(prompt: str, budget_nzd: float, db_path: str) -> str:
         {"role": "user", "content": f"{prompt}\n\nBudget: NZ${budget_nzd}"},
     ]
 
+    steps_scratchpad: list[dict[str, str]] = []
     while True:
         # Make the LLM call to work out tools to call (or a file answer)
         response = client.chat.completions.create(
@@ -144,16 +125,27 @@ def run_agent(prompt: str, budget_nzd: float, db_path: str) -> str:
         )
         response_message = response.choices[0].message
 
-        # If the LLM did not return a tool_call, it is the final answer
+        # RETURN: If the LLM did not return a tool_call, it is the final answer
         if not response_message.tool_calls:
-            return response_message.content or ""
+            raw = response_message.content or ""
+            itinerary = re.sub(r"^```[a-z]*\n?|\n?```$", "", raw.strip())
+            return {
+                "itinerary": itinerary,
+                "steps_scratchpad": steps_scratchpad,
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+            }
 
         # Add the current tool call message to the message history
         messages.append(response_message)
 
         # Make the tool calls via the dispatch_tool function in tools.py
         for tool_call in response_message.tool_calls:
-            console.print(f"[dim]calling {tool_call.function.name}({tool_call.function.arguments})[/dim]")
+            args = json.loads(tool_call.function.arguments)
+            reasoning = args.get("reasoning", "")
+            steps_scratchpad.append({"tool": tool_call.function.name, "reasoning": reasoning})
+
+            # Make the call to the tool
             result = dispatch_tool(tool_call.function.name, tool_call.function.arguments)
             messages.append({
                 "role": "tool",

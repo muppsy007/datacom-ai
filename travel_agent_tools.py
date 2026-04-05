@@ -108,8 +108,9 @@ TOOL_SCHEMAS: list[ChatCompletionToolParam] = [
                     "origin":      {"type": "string", "description": "IATA airport code, e.g. CHC"},
                     "destination": {"type": "string", "description": "IATA airport code, e.g. AKL"},                                          
                     "date":        {"type": "string", "description": "Date in YYYY-MM-DD format"},
+                    "reasoning":   {"type": "string"},
                 },                                                                                                                            
-                "required": ["origin", "destination", "date"],
+                "required": ["origin", "destination", "date", "reasoning"],
             },                                                                                                                                
         },      
     },
@@ -133,8 +134,9 @@ TOOL_SCHEMAS: list[ChatCompletionToolParam] = [
                         "type": "string", 
                         "description": "End date for forecast in YYYY-MM-DD format"
                     },
+                    "reasoning":   {"type": "string"},
                 },                                                                                                                            
-                "required": ["location", "start_date", "end_date"],
+                "required": ["location", "start_date", "end_date", "reasoning"],
             },                                                                                                                                
         },      
     },  
@@ -148,10 +150,11 @@ TOOL_SCHEMAS: list[ChatCompletionToolParam] = [
                 "properties": {                                                                                                               
                     "location":   {
                         "type": "string", 
-                        "description": "Town or City name, e.g. Auckland"
+                        "description": "Town or City name, e.g. Auckland",
                     },
+                    "reasoning":   {"type": "string"},
                 },                                                                                                                            
-                "required": ["location"],
+                "required": ["location", "reasoning"],
             },                                                                                                                                
         },      
     },
@@ -179,8 +182,9 @@ TOOL_SCHEMAS: list[ChatCompletionToolParam] = [
                         "type": "number",
                         "description": "The budget in NZD to check against",
                     },
+                    "reasoning":   {"type": "string"},
                 },
-                "required": ["items", "budget_nzd"],
+                "required": ["items", "budget_nzd", "reasoning"],
             },
         },
     },
@@ -190,13 +194,22 @@ def calculate_total(items: list[dict[str, Any]], budget_nzd: float) -> dict[str,
     """Sum costs of named items and identify what to remove if over budget."""
     total = round(sum(item["cost_nzd"] for item in items), 2)
     over_budget = total > budget_nzd
-    most_expensive = max(items, key=lambda x: x["cost_nzd"]) if over_budget else None
+    to_remove = None
+    if over_budget:
+        overage = total - budget_nzd
+        activities = [i for i in items if not i["name"].startswith(("outbound:", "return:"))]
+        # Find cheapest activity that covers the overage, or the most expensive if none covers it
+        covering = [i for i in activities if i["cost_nzd"] >= overage]
+        if covering:
+            to_remove = min(covering, key=lambda x: x["cost_nzd"])
+        elif activities:
+            to_remove = max(activities, key=lambda x: x["cost_nzd"])
     return {
         "total_nzd": total,
         "budget_nzd": budget_nzd,
         "constraint_satisfied": not over_budget,
         "remaining_nzd": round(budget_nzd - total, 2),
-        "remove_item": most_expensive["name"] if most_expensive else None,
+        "remove_item": to_remove["name"] if to_remove else None,
         "approved_items": items,
     }
 
@@ -210,4 +223,5 @@ TOOLS: dict[str, Any] = {
 
 def dispatch_tool(name:str, arguments_json: str)-> str:
     args = json.loads(arguments_json)
+    args.pop("reasoning", None) 
     return json.dumps(TOOLS[name](**args)) 
