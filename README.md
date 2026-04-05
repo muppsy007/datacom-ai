@@ -56,6 +56,16 @@ python travel_planner.py
 Enter a natural language trip request including a budget, e.g.:
 > Plan a 2-day trip to Auckland from Christchurch, departing 2025-06-01 and returning 2025-06-03, for under NZ$500
 
+### Task 3.4
+
+```
+cd task34
+python code_assistant.py --force-fail
+```
+
+Enter a Rust coding task:
+> write a Rust struct called Matrix that supports 2x2 matrix multiplication, with tests 
+
 ## Intentional choices
 **Global**
 * Commits direct to main instead of branch/rebase solely to avoid unnecessary ceremony
@@ -80,6 +90,9 @@ Enter a natural language trip request including a budget, e.g.:
 * `reasoning` field on every tool schema forces the model to emit `steps_scratchpad` tool/reasoning pairs
 * Store log record with scratchpad, itinerary cost, tokens used and token cost in `metrics.db`
 * Budget enforcement is handled by the `calculate_total` tool rather than the model's arithmetic
+
+**Task 3.3**
+* gtp-4o is prett=y good at coding tasks. Rather than try and find a prompt that reliably fails, I introduced the `--force-fail` arg to the `code-assistant.py` entrypoint. This will always fail the first time by adding a syntax error, to demonstrate retries
 
 ## Potential improvements
 * In a production system, we might consider a rolling summary buffer so earlier context than N is not completely omitted from future prompts.
