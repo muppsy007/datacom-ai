@@ -34,41 +34,27 @@ python ingest.py
 python qa.py
 ```
 
-**Supplementary - evaluate retreival pipeline (Recall@5)**
-
-```
-python evaluate.py
-```
-
-**Example questions based on corpus**
+Example questions based on corpus
 > What is the optimal tyre pressure for a Holden Colorado?
 
 > Which dictionary does the US government adhere to for official spelling?
 
 > What was the name of the ship in Moby Dick?
 
-## Corpus Documents
+**Supplementary - evaluate retreival pipeline (Recall@5)**
 
-- Car Manual - Holden Colorado MY19 User Manual
-- Novel - The Fellowship of the Ring
-- Govt Policy - GPO Style Manual 2016
-- Govt Policy - GPO Style Manual 2008
-- Govt Policy - GPO Style Manual 2000
-- Novel - Don Quixote
-- Novel - Complete Works of Shakespeare
-- Novel - War and Peace
-- Novel - Moby Dick
-- Novel - Middlemarch
-- Novel - Bleak House
-- Novel - Great Expectations
-- Novel - A Tale of Two Cities
-- Novel - Pride and Prejudice
-- Novel - The Adventures of Sherlock Holmes
-- Novel - Les Misérables
-- Religion - The King James Bible
-- Novel - David Copperfield
-- Novel - The Brothers Karamazov
-- Novel - Crime and Punishment
+```
+python evaluate.py
+```
+
+### Task 3.3
+
+```
+python travel_planner.py
+```
+
+Enter a natural language trip request including a budget, e.g.:
+> Plan a 2-day trip to Auckland from Christchurch, departing 2025-06-01 and returning 2025-06-03, for under NZ$500
 
 ## Intentional choices
 **Global**
@@ -89,6 +75,34 @@ python evaluate.py
 * Building OpenAI client is done in a couple of places. In a larger system this would go in a factory
 * Chunk size is 1000 chars with 200 char overlap to preserve context at boundaries
 
+**Task 3.3**
+* There were a number of ways scratchpad could be handled, including LangChain. But I went with manual implementation
+* `reasoning` field on every tool schema forces the model to emit `steps_scratchpad` tool/reasoning pairs
+* Store log record with scratchpad, itinerary cost, tokens used and token cost in `metrics.db`
+* Budget enforcement is handled by the `calculate_total` tool rather than the model's arithmetic
+
 ## Potential improvements
 * In a production system, we might consider a rolling summary buffer so earlier context than N is not completely omitted from future prompts.
 * Postgres/pgvector for both relational and vector storage.
+
+## Corpus Documents
+- Car Manual - Holden Colorado MY19 User Manual
+- Novel - The Fellowship of the Ring
+- Govt Policy - GPO Style Manual 2016
+- Govt Policy - GPO Style Manual 2008
+- Govt Policy - GPO Style Manual 2000
+- Novel - Don Quixote
+- Novel - Complete Works of Shakespeare
+- Novel - War and Peace
+- Novel - Moby Dick
+- Novel - Middlemarch
+- Novel - Bleak House
+- Novel - Great Expectations
+- Novel - A Tale of Two Cities
+- Novel - Pride and Prejudice
+- Novel - The Adventures of Sherlock Holmes
+- Novel - Les Misérables
+- Religion - The King James Bible
+- Novel - David Copperfield
+- Novel - The Brothers Karamazov
+- Novel - Crime and Punishment
