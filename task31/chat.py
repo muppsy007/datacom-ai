@@ -57,15 +57,30 @@ def init_db(db_path: str) -> sqlite3.Connection:
             id INTEGER PRIMARY KEY,
             role TEXT,
             content TEXT,
+            prompt_tokens INTEGER,
+            completion_tokens INTEGER,
+            cost_usd REAL,
+            latency_ms REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )              
+        )
     """)
     conn.commit()
     return conn
 
 # Save a message to the database
-def save_message(conn: sqlite3.Connection, role: str, content: str) -> None:
-    conn.execute("INSERT INTO messages (role, content) VALUES (?, ?)", (role, content))
+def save_message(
+    conn: sqlite3.Connection,
+    role: str,
+    content: str,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
+    cost_usd: float | None = None,
+    latency_ms: float | None = None,
+) -> None:
+    conn.execute(
+        "INSERT INTO messages (role, content, prompt_tokens, completion_tokens, cost_usd, latency_ms) VALUES (?, ?, ?, ?, ?, ?)",
+        (role, content, prompt_tokens, completion_tokens, cost_usd, latency_ms),
+    )
     conn.commit()
 
 # Load the last n messages from the database to send as context with the prompt
@@ -150,7 +165,13 @@ def main():
                 console.print(stats, style="dim")
 
             # Save the message and print and empty line for the next "You:" prompt
-            save_message(conn, "assistant", response)
+            save_message(
+                conn, "assistant", response,
+                prompt_tokens=usage.prompt_tokens if usage else None,
+                completion_tokens=usage.completion_tokens if usage else None,
+                cost_usd=cost if usage else None,
+                latency_ms=elapsed_ms,
+            )
             console.print()
     except KeyboardInterrupt:
         # Graceful exit on ctrl-c

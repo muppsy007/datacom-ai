@@ -92,3 +92,25 @@ def test_load_messages_empty_db_returns_empty_list():
     from task31.chat import load_messages
     conn = _init()
     assert load_messages(conn) == []
+
+
+def test_save_message_persists_usage_fields():
+    from task31.chat import save_message
+    conn = _init()
+    save_message(conn, "assistant", "Hello", prompt_tokens=100, completion_tokens=50, cost_usd=0.000775, latency_ms=342.5)
+    row = conn.execute("SELECT prompt_tokens, completion_tokens, cost_usd, latency_ms FROM messages").fetchone()
+    assert row[0] == 100
+    assert row[1] == 50
+    assert abs(row[2] - 0.000775) < 1e-9
+    assert row[3] == 342.5
+
+
+def test_save_message_usage_fields_nullable_for_user_messages():
+    from task31.chat import save_message
+    conn = _init()
+    save_message(conn, "user", "Hello")
+    row = conn.execute("SELECT prompt_tokens, completion_tokens, cost_usd, latency_ms FROM messages").fetchone()
+    assert row[0] is None
+    assert row[1] is None
+    assert row[2] is None
+    assert row[3] is None
