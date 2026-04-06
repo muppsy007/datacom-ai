@@ -16,18 +16,19 @@ task = st.text_input(
     placeholder="e.g. write quicksort in Rust",
 )
 
-st.markdown(
-    f'<span style="color: grey; font-size: 0.85em;">'
-    f"<u>Example Prompt</u>: {EXAMPLE_PROMPT} "
-    f'<a href="?use_example=1" target="_self" style="color: #4A90D9;">[use this]</a>'
-    f"</span>",
-    unsafe_allow_html=True,
-)
+def on_code_pill_select():
+    picked = st.session_state.code_pills
+    if picked:
+        st.session_state.code_task_value = picked
 
-if st.query_params.get("use_example") == "1":
-    st.query_params.clear()
-    st.session_state.code_task_value = EXAMPLE_PROMPT
-    st.rerun()
+st.pills(
+    "Sample Prompt",
+    [EXAMPLE_PROMPT],
+    selection_mode="single",
+    default=None,
+    key="code_pills",
+    on_change=on_code_pill_select,
+)
 
 force_fail = st.checkbox("Force fail (demo retry loop)")
 

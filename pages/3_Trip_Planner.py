@@ -18,18 +18,19 @@ user_prompt = st.text_input(
     placeholder="e.g. A 3-day trip to Queenstown for $800",
 )
 
-st.markdown(
-    f'<span style="color: grey; font-size: 0.85em;">'
-    f"<u>Example Prompt</u>: {EXAMPLE_PROMPT} "
-    f'<a href="?use_example=1" target="_self" style="color: #4A90D9;">[use this]</a>'
-    f"</span>",
-    unsafe_allow_html=True,
-)
+def on_trip_pill_select():
+    picked = st.session_state.trip_pills
+    if picked:
+        st.session_state.prompt_value = picked
 
-if st.query_params.get("use_example") == "1":
-    st.query_params.clear()
-    st.session_state.prompt_value = EXAMPLE_PROMPT
-    st.rerun()
+st.pills(
+    "Sample Prompt",
+    [EXAMPLE_PROMPT],
+    selection_mode="single",
+    default=None,
+    key="trip_pills",
+    on_change=on_trip_pill_select,
+)
 
 if st.button("Plan Trip", disabled=not user_prompt):
     with st.spinner("Planning your trip..."):

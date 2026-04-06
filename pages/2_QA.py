@@ -26,22 +26,20 @@ question = st.text_input(
     placeholder="e.g. What colour is Moby Dick?",
 )
 
-# Build example prompts with [use this] links
-example_html = ""
-for i, ex in enumerate(EXAMPLES):
-    example_html += (
-        f'<span style="color: grey; font-size: 0.85em;">'
-        f"<u>Example {i+1}</u>: {ex} "
-        f'<a href="?use_example={i}" target="_self" style="color: #4A90D9;">[use this]</a>'
-        f"</span><br>"
-    )
-st.markdown(example_html, unsafe_allow_html=True)
+def on_pill_select():
+    picked = st.session_state.qa_pills
+    if picked:
+        st.session_state.qa_question_value = picked
 
-use_example = st.query_params.get("use_example")
-if use_example is not None:
-    st.query_params.clear()
-    st.session_state.qa_question_value = EXAMPLES[int(use_example)]
-    st.rerun()
+st.pills(
+    "Sample Prompts",
+    EXAMPLES,
+    selection_mode="single",
+    default=None,
+    key="qa_pills",
+    on_change=on_pill_select,
+    label_visibility="visible",
+)
 
 if st.button("Ask", disabled=not question):
     client = get_client()
