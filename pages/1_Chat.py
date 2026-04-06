@@ -15,9 +15,9 @@ def get_client_and_config():
 client, config = get_client_and_config()
 conn = init_db(config.db_path)
 
-# Load persisted history from SQLite into session state on first run
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = load_messages(conn)
+# Always reload persisted history from SQLite so we pick up messages
+# from previous sessions (page refresh, CLI usage, etc.)
+st.session_state.chat_history = load_messages(conn)
 
 # Render conversation
 for msg in st.session_state.chat_history:
