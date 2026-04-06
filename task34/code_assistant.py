@@ -41,7 +41,7 @@ def main() -> None:
     parser.add_argument("--force-fail", action="store_true")
     args = parser.parse_args()
 
-    task = console.input("[bold]Enter your coding task:[/bold] ")
+    task = console.input("[cyan][bold]Enter your coding task:[/bold] ")
 
     console.print("\n[dim]Detecting language...[/dim]")
     language = detect_language(task)

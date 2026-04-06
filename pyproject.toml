@@ -1,3 +1,7 @@
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["task31*", "task32*", "task33*", "task34*"]
+
 [project]
 name = "datacom-ai"
 version = "0.1.0"
@@ -14,7 +18,7 @@ dependencies = [
     "sentence-transformers>=5.3.0",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.8",
@@ -38,3 +42,4 @@ quote-style = "double"
 
 [tool.pytest.ini_options]
 pythonpath = [".", "task31", "task32", "task33", "task34", "task34/languages"]
+testpaths = ["tests"]
