@@ -36,6 +36,44 @@ def build_initial_messages(task: str) -> list[dict[str, str]]:
     ]
 
 
+def run_task(task: str, force_fail: bool = False) -> FinalOutcome:
+    """Run the self-healing code generation loop and return the outcome."""
+    language = detect_language(task)
+    messages = build_initial_messages(task)
+    outcome: FinalOutcome | None = None
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        code = generate_code(messages)
+        result = run(code, language, attempt_number=attempt, force_fail=force_fail)
+
+        if result.success:
+            outcome = FinalOutcome(
+                success=True,
+                total_attempts=attempt,
+                final_code=result.code,
+                last_error=None,
+            )
+            break
+
+        # Append the last (failed) code and message to the prompt so the next request has context
+        messages.append({"role": "assistant", "content": code})
+        messages.append({
+            "role": "user",
+            "content": f"That failed with the following error:\n\n{result.stderr}",
+        })
+
+        if attempt == MAX_ATTEMPTS:
+            outcome = FinalOutcome(
+                success=False,
+                total_attempts=attempt,
+                final_code=result.code,
+                last_error=result.stderr,
+            )
+
+    assert outcome is not None
+    return outcome
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force-fail", action="store_true")
@@ -73,9 +111,9 @@ def main() -> None:
         console.print(f"[yellow]Attempt {attempt} failed.[/yellow]")
         if result.stderr:
             console.print(f"[dim]{result.stderr.strip()}[/dim]")
-        
+
         # Add a little break to give the user time to see output
-        time.sleep(3) 
+        time.sleep(3)
 
         # Append the last (failed) code and message to the prompt so the next request has context
         messages.append({"role": "assistant", "content": code})
