@@ -3,6 +3,7 @@ Task 3.3 - Planning Agent with Tool Calling
 This defines our tools (all mocks to avoid setting up external APIs) that our agent should decide
 to use and process during it's planning.
 """
+import hashlib
 import json
 import random
 
@@ -11,9 +12,10 @@ from typing import Any
 
 # Mock inbound and outbound flights API
 def search_flights(origin: str, destination: str, date: str) -> dict[str, Any]:
-    # Add a seed to make the random pricing more deterministic
-    # In reality this is just saving us from writing 5 full blocks per param combo
-    random.seed(hash(origin + destination + date))
+    # Deterministic seed using md5 so prices are stable across restarts
+    # (Python's hash() is randomized per process via PYTHONHASHSEED)
+    seed = int(hashlib.md5((origin + destination + date).encode()).hexdigest(), 16)
+    random.seed(seed)
     
     carriers = [                                                                                                                              
           ("NZ301", "Air New Zealand", "07:00", "08:05", 65),                                                                                   
