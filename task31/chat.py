@@ -95,83 +95,111 @@ def load_messages(conn: sqlite3.Connection, limit: int = 10) -> list[ChatComplet
 
     return [{"role": row[0], "content": row[1]} for row in rows]
 
+SYSTEM_PROMPT = (
+    "You are an exuberant and helpful chat assistant. "
+    "Keep your responses short and concise"
+)
+
+
+def send_message(
+    client: OpenAI,
+    config: Config,
+    conn: sqlite3.Connection,
+    user_input: str,
+) -> dict:
+    """Send a message to the LLM and return the response with usage metrics.
+
+    Returns a dict with keys: response, prompt_tokens, completion_tokens, cost, latency_ms
+    """
+    # Save the user message
+    save_message(conn, "user", user_input)
+
+    # Get the message history
+    message_history = load_messages(conn)
+
+    # Build the system prompt
+    messages: list[ChatCompletionMessageParam] = [{
+        "role": "system",
+        "content": SYSTEM_PROMPT,
+    }]
+    messages += message_history
+
+    # Start recording time for latency
+    start = time.perf_counter()
+
+    # Setup the OpenAI stream
+    stream = client.chat.completions.create(
+        model=config.model_name,
+        messages=messages,
+        stream=True,
+        stream_options={"include_usage": True}
+    )  # type: ignore[call-overload]
+
+    response = ""
+    usage = None
+    for chunk in stream:
+        if not chunk.choices:
+            if chunk.usage:
+                usage = chunk.usage
+            continue
+        token = chunk.choices[0].delta.content
+        if token is not None:
+            response += token
+
+    # Get total time spent with LLM request
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    # Work out cost based on fixed per/million cost
+    # Refer https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+    prompt_tokens = usage.prompt_tokens if usage else None
+    completion_tokens = usage.completion_tokens if usage else None
+    cost = None
+    if usage:
+        # In a situation where we have multiple models, these prices should go in a dict
+        cost = (usage.prompt_tokens * 2.50 + usage.completion_tokens * 10.00) / 1_000_000
+
+    # Save the assistant message
+    save_message(
+        conn, "assistant", response,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        cost_usd=cost,
+        latency_ms=elapsed_ms,
+    )
+
+    return {
+        "response": response,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "cost": cost,
+        "latency_ms": elapsed_ms,
+    }
+
+
 def main():
     client, config = bootstrap()
     conn = init_db(config.db_path)
-    
+
     try:
-        while True :
+        while True:
             user_input = prompt.ask("[cyan]You")
             if user_input.strip().lower() in ("quit", "exit"):
                 console.print("[bold red]User exited. Goodbye")
                 break
-            
-            # Save the user message
-            save_message(conn, "user", user_input)
-            
-            # Get the message history
-            message_history = load_messages(conn)
 
-            # Build the system prompt
-            messages: list[ChatCompletionMessageParam] = [{
-                "role": "system", 
-                "content": (
-                    "You are an exuberant and helpful chat assistant. "
-                    "Keep your responses short and concise"
-                ),
-            }]
-            messages += message_history
-
-            # Start recording time for latency
-            start = time.perf_counter()
-
-            # Setup the OpenAI stream
-            stream = client.chat.completions.create(
-                model=config.model_name,
-                messages=messages,
-                stream=True,
-                stream_options={"include_usage": True}
-            ) #type: ignore[call-overload]
-
-            response = ""
-            usage = None
             console.print("[yellow]ChatBot: ", end="")
-            for chunk in stream:
-                if not chunk.choices:
-                    if chunk.usage:
-                        usage = chunk.usage
-                    continue
-                token = chunk.choices[0].delta.content
-                if token is not None:
-                    console.print(token, end="", markup=False)
-                    response += token
+            result = send_message(client, config, conn, user_input)
+            console.print(result["response"], markup=False)
 
-            # Get total time spent with LLM request
-            elapsed_ms = (time.perf_counter() - start) * 1000
-
-            # Work out cost based on fixed per/million cost
-            # Refer https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
-            if usage:
-                # In a situation where we have multiple models, these prices should go in a dict
-                cost = (usage.prompt_tokens * 2.50 + usage.completion_tokens * 10.00) / 1_000_000
-
-                # Build the usage line and output
+            if result["cost"] is not None:
                 stats = (
-                    f"[stats] prompt={usage.prompt_tokens} "
-                    f"completion={usage.completion_tokens} "
-                    f"cost=USD${cost:.6f} "
-                    f"latency={elapsed_ms:.0f}ms"
+                    f"[stats] prompt={result['prompt_tokens']} "
+                    f"completion={result['completion_tokens']} "
+                    f"cost=USD${result['cost']:.6f} "
+                    f"latency={result['latency_ms']:.0f}ms"
                 )
                 console.print(stats, style="dim")
 
-            # Save the message and print and empty line for the next "You:" prompt
-            save_message(
-                conn, "assistant", response,
-                prompt_tokens=usage.prompt_tokens if usage else None,
-                completion_tokens=usage.completion_tokens if usage else None,
-                cost_usd=cost if usage else None,
-                latency_ms=elapsed_ms,
-            )
             console.print()
     except KeyboardInterrupt:
         # Graceful exit on ctrl-c
