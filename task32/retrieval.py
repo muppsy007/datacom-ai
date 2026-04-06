@@ -1,4 +1,3 @@
-
 '''
 Task 3.2 - RAG QA
 The main query file. Use a question to retrieve closest matches from the corpus
@@ -41,7 +40,6 @@ def init_retrieval_db(db_path: str) -> sqlite3.Connection:
 
 
 _default_db_path = str(Path(__file__).resolve().parent.parent / "metrics.db")
-conn = init_retrieval_db(os.getenv("DB_PATH") or _default_db_path)
 
 
 def retrieve(query: str, n_results: int = 5, source: str = "qa") -> QueryResult:
@@ -52,6 +50,9 @@ def retrieve(query: str, n_results: int = 5, source: str = "qa") -> QueryResult:
     results = collection.query(query_embeddings=[embedding], n_results=n_results)
 
     latency_ms = (time.perf_counter() - start) * 1000
+
+    # need to instantiate the question per retreival to avoid SQLite thread errors
+    conn = init_retrieval_db(os.getenv("DB_PATH") or _default_db_path)
     conn.execute(
         "INSERT INTO retrieval_runs (query, latency_ms, source) VALUES (?, ?, ?)",
         (query, latency_ms, source),

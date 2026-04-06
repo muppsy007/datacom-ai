@@ -1,7 +1,7 @@
 '''
 Task 3.2 - RAG QA
-The primary Question Answering service.  Given a question, this retrieves the most relevant passages 
-from the corpus. Then we will send the question with passages to our LLM to generate an answer 
+The primary Question Answering service.  Given a question, this retrieves the most relevant passages
+from the corpus. Then we will send the question with passages to our LLM to generate an answer
 with citations.
 '''
 import os
@@ -14,16 +14,83 @@ from rich.prompt import Prompt
 
 from retrieval import retrieve
 
-dotenv.load_dotenv()
 console = Console()
 prompt = Prompt()
 
-client = OpenAI(
-    api_key=os.environ["OPENAI_API_KEY"],
-    base_url=os.environ["OPENAI_BASE_URL"],
+QA_SYSTEM_PROMPT = (
+    "You are a helpful assistant. Answer the question provided by the user"
+    "If the answer cannot be found in the context, say "
+    "'I don't have enough information in my corpus to answer that question.' "
+    "Do not use any knowledge outside the provided context."
 )
 
+
+def create_client() -> OpenAI:
+    """Create an OpenAI client from environment variables."""
+    dotenv.load_dotenv()
+    return OpenAI(
+        api_key=os.environ["OPENAI_API_KEY"],
+        base_url=os.environ["OPENAI_BASE_URL"],
+    )
+
+
+def ask_question(question: str, client: OpenAI) -> dict:
+    """Answer a question using RAG retrieval and an LLM.
+
+    Returns a dict with keys: answer, sources, retrieve_ms, llm_ms
+    """
+    start = time.time()
+    results = retrieve(question)
+    retrieve_ms = (time.time() - start) * 1000
+
+    if not results["documents"] or not results["metadatas"]:
+        return {
+            "answer": "No results found",
+            "sources": [],
+            "retrieve_ms": retrieve_ms,
+            "llm_ms": 0.0,
+        }
+
+    # We have the results from our vector db. Build context for LLM
+    context = ""
+    for i, (doc, meta) in enumerate(zip(results["documents"][0], results["metadatas"][0])):
+        context += f"[{i+1}] {meta['title']} (chunk {meta['chunk_index']}):\n{doc}\n\n"
+
+    # Make the LLM request and get the response
+    start = time.time()
+
+    response = client.chat.completions.create(
+        model=os.environ["MODEL_NAME"],
+        messages=[
+            {
+                "role": "system",
+                "content": QA_SYSTEM_PROMPT,
+            },
+            {
+                "role": "user",
+                "content": f"Context:\n {context}\n\nQuestion: {question}",
+            },
+        ]
+    )
+    llm_ms = (time.time() - start) * 1000
+
+    answer = response.choices[0].message.content
+    sources = [
+        {"title": meta["title"], "chunk_index": meta["chunk_index"]}
+        for meta in results["metadatas"][0]
+    ]
+
+    return {
+        "answer": answer,
+        "sources": sources,
+        "retrieve_ms": retrieve_ms,
+        "llm_ms": llm_ms,
+    }
+
+
 def main():
+    client = create_client()
+
     # Ask endless questions until exit is requested
     try:
         while True:
@@ -31,57 +98,24 @@ def main():
             if question.strip().lower() in ("quit", "exit"):
                 console.print("[bold red]User exited. Goodbye")
                 break
-        
-            start = time.time()
-            results = retrieve(question)
-            retrieve_ms = (time.time() - start) * 1000
 
-            if not results["documents"] or not results["metadatas"]:
+            result = ask_question(question, client)
+
+            if not result["sources"]:
                 console.print("[red]No results found[/red]")
-                return
+                continue
 
-            # We have the results from our vector db. Build context for LLM
-            context = ""
-            for i, (doc, meta) in enumerate(zip(results["documents"][0], results["metadatas"][0])):
-                context += f"[{i+1}] {meta['title']} (chunk {meta['chunk_index']}):\n{doc}\n\n"
+            console.print(f"[bold green]Answer: {result['answer']}")
 
-            # Make the LLM request and get the response
-            start = time.time()
-
-            system_prompt = (
-                "You are a helpful assistant. Answer the question provided by the user"
-                "If the answer cannot be found in the context, say "
-                "'I don't have enough information in my corpus to answer that question.' "
-                "Do not use any knowledge outside the provided context."
-            )
-            
-            response = client.chat.completions.create(
-                model=os.environ["MODEL_NAME"],
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt,
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Context:\n {context}\n\nQuestion: {question}",
-                    },
-                ]
-            )
-            llm_ms = (time.time() - start) * 1000
-            
-            # Output LLM answers
-            answer = response.choices[0].message.content
-            console.print(f"[bold green]Answer: {answer}")
-
-            # Output sources
             console.print("\n[bold]Sources:[/bold]")
-            for i, meta in enumerate(results["metadatas"][0]):
-                console.print(f"  [{i+1}] {meta['title']}, chunk {meta['chunk_index']}")
+            for i, src in enumerate(result["sources"], 1):
+                console.print(f"  [{i}] {src['title']}, chunk {src['chunk_index']}")
 
-            # Output timings
-            console.print(f"\nRetrieval: {retrieve_ms:.0f}ms | LLM: {llm_ms:.0f}ms", style="dim")
-    except KeyboardInterrupt:                                                                                                                     
+            console.print(
+                f"\nRetrieval: {result['retrieve_ms']:.0f}ms | LLM: {result['llm_ms']:.0f}ms",
+                style="dim",
+            )
+    except KeyboardInterrupt:
       console.print("\n[bold red]User exited. Goodbye")
 
 
