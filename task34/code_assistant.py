@@ -11,9 +11,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
+from collections.abc import Generator
+
 from code_generator import detect_language, generate_code
 from executor import run
-from models import FinalOutcome
+from models import AttemptResult
 
 dotenv.load_dotenv()
 
@@ -36,23 +38,18 @@ def build_initial_messages(task: str) -> list[dict[str, str]]:
     ]
 
 
-def run_task(task: str, force_fail: bool = False) -> FinalOutcome:
-    """Run the self-healing code generation loop and return the outcome."""
+def run_task(task: str, force_fail: bool = False) -> Generator[AttemptResult]:
+    """Run the self-healing code generation loop, yielding each AttemptResult."""
     language = detect_language(task)
     messages = build_initial_messages(task)
-    outcome: FinalOutcome | None = None
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         code = generate_code(messages)
         result = run(code, language, attempt_number=attempt, force_fail=force_fail)
 
+        yield result
+
         if result.success:
-            outcome = FinalOutcome(
-                success=True,
-                total_attempts=attempt,
-                final_code=result.code,
-                last_error=None,
-            )
             break
 
         # Append the last (failed) code and message to the prompt so the next request has context
@@ -61,17 +58,6 @@ def run_task(task: str, force_fail: bool = False) -> FinalOutcome:
             "role": "user",
             "content": f"That failed with the following error:\n\n{result.stderr}",
         })
-
-        if attempt == MAX_ATTEMPTS:
-            outcome = FinalOutcome(
-                success=False,
-                total_attempts=attempt,
-                final_code=result.code,
-                last_error=result.stderr,
-            )
-
-    assert outcome is not None
-    return outcome
 
 
 def main() -> None:
@@ -81,74 +67,41 @@ def main() -> None:
 
     task = console.input("[cyan][bold]Enter your coding task:[/bold] ")
 
-    console.print("\n[dim]Detecting language...[/dim]")
-    language = detect_language(task)
-    console.print(f"[dim]Detected language:[/dim] [cyan]{language}[/cyan]\n")
-
-    messages = build_initial_messages(task)
-    outcome: FinalOutcome | None = None
-
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        console.rule(f"Attempt {attempt}/{MAX_ATTEMPTS}")
-
-        # Generate code
-        console.print("[dim]Generating code...[/dim]")
-        code = generate_code(messages)
-
-        # Run tests
-        console.print("[dim]Running tests...[/dim]")
-        result = run(code, language, attempt_number=attempt, force_fail=args.force_fail)
+    last_result: AttemptResult | None = None
+    for result in run_task(task, force_fail=args.force_fail):
+        last_result = result
+        console.rule(f"Attempt {result.attempt_number}/{MAX_ATTEMPTS}")
 
         if result.success:
-            outcome = FinalOutcome(
-                success=True,
-                total_attempts=attempt,
-                final_code=result.code,
-                last_error=None,
-            )
             break
 
-        console.print(f"[yellow]Attempt {attempt} failed.[/yellow]")
+        console.print(f"[yellow]Attempt {result.attempt_number} failed.[/yellow]")
         if result.stderr:
             console.print(f"[dim]{result.stderr.strip()}[/dim]")
 
         # Add a little break to give the user time to see output
         time.sleep(3)
 
-        # Append the last (failed) code and message to the prompt so the next request has context
-        messages.append({"role": "assistant", "content": code})
-        messages.append({
-            "role": "user",
-            "content": f"That failed with the following error:\n\n{result.stderr}",
-        })
-
-        if attempt == MAX_ATTEMPTS:
-            outcome = FinalOutcome(
-                success=False,
-                total_attempts=attempt,
-                final_code=result.code,
-                last_error=result.stderr,
-            )
-
-    assert outcome is not None
+    assert last_result is not None
     console.rule("Result")
 
-    if outcome.success:
+    if last_result.success:
         console.print(Panel(
-            f"[green]All tests passed on attempt {outcome.total_attempts}/{MAX_ATTEMPTS}[/green]",
+            f"[green]All tests passed on attempt {last_result.attempt_number}/{MAX_ATTEMPTS}[/green]",
             title="Success",
             border_style="green",
         ))
     else:
         console.print(Panel(
-            f"[red]Failed after {outcome.total_attempts} attempts[/red]\n\n"
-            f"[dim]Last error:[/dim]\n{outcome.last_error}",
+            f"[red]Failed after {last_result.attempt_number} attempts[/red]\n\n"
+            f"[dim]Last error:[/dim]\n{last_result.stderr}",
             title="Failed",
             border_style="red",
         ))
 
+    language = detect_language(task)
     console.print("\n[bold]Final code:[/bold]")
-    console.print(Syntax(outcome.final_code, language, theme="monokai"))
+    console.print(Syntax(last_result.code, language, theme="monokai"))
 
 
 if __name__ == "__main__":

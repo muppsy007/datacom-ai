@@ -32,16 +32,20 @@ if st.query_params.get("use_example") == "1":
 force_fail = st.checkbox("Force fail (demo retry loop)")
 
 if st.button("Run", disabled=not task):
-    with st.spinner("Generating and testing code..."):
-        outcome = run_task(task, force_fail=force_fail)
+    status = st.status("Running...", expanded=True)
+    last_result = None
 
-    if outcome.success:
-        st.success(f"All tests passed on attempt {outcome.total_attempts}")
+    for result in run_task(task, force_fail=force_fail):
+        last_result = result
+        label = "passed" if result.success else "failed"
+        status.write(f"**Attempt {result.attempt_number}** — {label}")
+        if result.stderr:
+            status.code(result.stderr)
+
+    if last_result.success:
+        status.update(label=f"All tests passed on attempt {last_result.attempt_number}", state="complete")
     else:
-        st.error(f"Failed after {outcome.total_attempts} attempts")
-        if outcome.last_error:
-            st.subheader("Last Error")
-            st.code(outcome.last_error)
+        status.update(label=f"Failed after {last_result.attempt_number} attempts", state="error")
 
     st.subheader("Final Code")
-    st.code(outcome.final_code)
+    st.code(last_result.code)

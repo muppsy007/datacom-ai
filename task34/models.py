@@ -14,9 +14,3 @@ class AttemptResult:
     attempt_number: int
 
 
-@dataclass
-class FinalOutcome:
-    success: bool
-    total_attempts: int
-    final_code: str
-    last_error: str | None
