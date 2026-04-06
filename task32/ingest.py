@@ -20,10 +20,10 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 console = Console()
 model = SentenceTransformer("all-MiniLM-L6-v2")
-chroma_client = chromadb.PersistentClient(path="data/chroma")
+chroma_client = chromadb.PersistentClient(path=str(Path(__file__).resolve().parent / "data" / "chroma"))
 
 def main():
-    manifest_file = Path("data/corpus_manifest.json")
+    manifest_file = Path(__file__).resolve().parent / "data" / "corpus_manifest.json"
     manifest_json = load_manifest(path=manifest_file)
 
     # Chroma collection for embeddings

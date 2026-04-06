@@ -16,49 +16,6 @@ from corpus import SOURCES, DownloadStatus, Source
 
 console = Console()
 
-def main():
-    dest_dir = Path("data/raw")
-    manifest_file = Path("data/corpus_manifest.json")
-
-    # If dest_dir doesn't exist, create it
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    results: list[dict[str, Any]] = []
-    with Progress(
-        TextColumn("[bold]{task.description}"),
-        BarColumn(),
-        DownloadColumn(),
-    ) as progress:
-        # Loop the corpus sources and attempt a download
-        for source in SOURCES:
-            file_path = dest_dir / f"{source.id}{source.file_extension}"
-            status = download_file(source=source, dest_dir=dest_dir, progress=progress)
-            results.append({"source": source, "status": status, "path": file_path})
-
-    # Add/update manifest of successfully downloaded corpus files
-    manifest_data: list[dict[str, Any]] = []
-    for result in results:  
-        if result["status"] != DownloadStatus.FAILED:
-            path = result["path"]
-            source = result["source"]
-            manifest_data.append({
-                "id": source.id,
-                "title": source.title,
-                "path": str(path),
-                "file_extension": source.file_extension,
-                "source_type": source.source_type,
-                "size_bytes": path.stat().st_size,
-                "fetched_at": datetime.now(UTC).isoformat(),
-                "url": source.url,
-            })
-
-    with open(manifest_file, "w") as f:
-        json.dump(manifest_data, f, indent=2)
-
-    total_size = sum(entry["size_bytes"] for entry in manifest_data)
-    console.print(f"[bold green]Manifest written to {manifest_file}")
-    console.print(f"{len(manifest_data)} sources, {total_size / 1_000_000:.1f} MB total")
-
 def download_file(source: Source, dest_dir: Path, progress: Progress) -> DownloadStatus:
     destination_path = dest_dir / f"{source.id}{source.file_extension}"
 
@@ -90,6 +47,54 @@ def download_file(source: Source, dest_dir: Path, progress: Progress) -> Downloa
     
     # Download completed successfully if we get here
     return DownloadStatus.DOWNLOADED
+
+def main():
+    try:
+        dest_dir = Path(__file__).resolve().parent / "data" / "raw"
+        manifest_file = Path(__file__).resolve().parent / "data" / "corpus_manifest.json"
+
+        # If dest_dir doesn't exist, create it
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        results: list[dict[str, Any]] = []
+        with Progress(
+            TextColumn("[bold]{task.description}"),
+            BarColumn(),
+            DownloadColumn(),
+        ) as progress:
+            # Loop the corpus sources and attempt a download
+            for source in SOURCES:
+                file_path = dest_dir / f"{source.id}{source.file_extension}"
+                status = download_file(source=source, dest_dir=dest_dir, progress=progress)
+                results.append({"source": source, "status": status, "path": file_path})
+
+        # Add/update manifest of successfully downloaded corpus files
+        manifest_data: list[dict[str, Any]] = []
+        for result in results:  
+            if result["status"] != DownloadStatus.FAILED:
+                path = result["path"]
+                source = result["source"]
+                manifest_data.append({
+                    "id": source.id,
+                    "title": source.title,
+                    "path": str(path),
+                    "file_extension": source.file_extension,
+                    "source_type": source.source_type,
+                    "size_bytes": path.stat().st_size,
+                    "fetched_at": datetime.now(UTC).isoformat(),
+                    "url": source.url,
+                })
+
+        with open(manifest_file, "w") as f:
+            json.dump(manifest_data, f, indent=2)
+
+        total_size = sum(entry["size_bytes"] for entry in manifest_data)
+        console.print(f"[bold green]Manifest written to {manifest_file}")
+        console.print(f"{len(manifest_data)} sources, {total_size / 1_000_000:.1f} MB total")
+    except KeyboardInterrupt:
+        # Graceful exit on ctrl-c
+        console.print("\n[bold red]User exited. Goodbye")
+
 
 if __name__ == "__main__":
       main()

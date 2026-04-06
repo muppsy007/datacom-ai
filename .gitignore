@@ -10,7 +10,7 @@ wheels/
 # Sensitive stuff
 .env
 metrics.db
-data/
+task32/data
 task34/tmp
 
 # Virtual environments

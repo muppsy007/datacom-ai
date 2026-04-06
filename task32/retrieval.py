@@ -5,6 +5,7 @@ The main query file. Use a question to retrieve closest matches from the corpus
 '''
 import logging
 import time
+from pathlib import Path
 
 import chromadb
 from chromadb.api.types import QueryResult
@@ -16,7 +17,7 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 console = Console()
 model = SentenceTransformer("all-MiniLM-L6-v2")
-chroma_client = chromadb.PersistentClient(path="data/chroma")
+chroma_client = chromadb.PersistentClient(path=str(Path(__file__).resolve().parent / "data" / "chroma"))
 
 def retrieve(query: str, n_results: int = 5) -> QueryResult:
     collection = chroma_client.get_collection(name="book_corpus")

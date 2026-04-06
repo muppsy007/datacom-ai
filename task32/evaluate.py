@@ -15,7 +15,7 @@ from rich.table import Table
 
 console = Console()
 
-def evaluate(question_path: str = "eval/questions.json") -> None:
+def evaluate(question_path: str = str(Path(__file__).resolve().parent / "eval" / "questions.json")) -> None:
     question_file = Path(question_path)
     question_data = load_questions(question_file)
 
