@@ -4,6 +4,7 @@ This is our document retriever. The list of documents we are pulling is defined 
 and defines the dataclass for a file
 """
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,10 @@ from corpus import SOURCES, DownloadStatus, Source
 
 console = Console()
 
+MAX_RETRIES = 3
+RETRY_DELAY_SECONDS = 2
+
+
 def download_file(source: Source, dest_dir: Path, progress: Progress) -> DownloadStatus:
     destination_path = dest_dir / f"{source.id}{source.file_extension}"
 
@@ -25,28 +30,35 @@ def download_file(source: Source, dest_dir: Path, progress: Progress) -> Downloa
     if destination_path.exists() and destination_path.stat().st_size >= source.min_bytes:
         progress.add_task(f"[dim]{source.title} (skipped)[/dim]", total=1, completed=1)
         return DownloadStatus.SKIPPED
-    
-    # THE DOWNLOAD
-    try:
-        with httpx.stream("GET", source.url, follow_redirects=True) as response:
-            response.raise_for_status() # Raise the status error
-            total_length = int(response.headers.get("content-length", 0))
-            task_id = progress.add_task(source.title, total=total_length)
-            with open(destination_path, "wb") as file:
-                # Loop chunks from the source, write them to local file, update progress
-                for chunk in response.iter_bytes(8192):
-                    file.write(chunk)
-                    progress.update(task_id=task_id, advance=len(chunk))
-    except Exception as e:
-        # An error retrieving the file. Delete our current document and output an error
-        if destination_path.exists():
-            destination_path.unlink()
 
-        console.print(f"[red]Failed to download {source.title}: {e}[/red]")
-        return DownloadStatus.FAILED
-    
-    # Download completed successfully if we get here
-    return DownloadStatus.DOWNLOADED
+    # THE DOWNLOAD (with retries for rate-limiting / transient errors)
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            with httpx.stream("GET", source.url, follow_redirects=True) as response:
+                response.raise_for_status()
+                total_length = int(response.headers.get("content-length", 0))
+                task_id = progress.add_task(source.title, total=total_length)
+                with open(destination_path, "wb") as file:
+                    # Loop chunks from the source, write them to local file, update progress
+                    for chunk in response.iter_bytes(8192):
+                        file.write(chunk)
+                        progress.update(task_id=task_id, advance=len(chunk))
+            # Download completed successfully
+            return DownloadStatus.DOWNLOADED
+        except Exception as e:
+            # Clean up partial file
+            if destination_path.exists():
+                destination_path.unlink()
+
+            if attempt < MAX_RETRIES:
+                delay = RETRY_DELAY_SECONDS * attempt
+                console.print(f"[yellow]Retry {attempt}/{MAX_RETRIES} for {source.title} in {delay}s: {e}[/yellow]")
+                time.sleep(delay)
+            else:
+                console.print(f"[red]Failed to download {source.title} after {MAX_RETRIES} attempts: {e}[/red]")
+                return DownloadStatus.FAILED
+
+    return DownloadStatus.FAILED
 
 def main():
     try:
