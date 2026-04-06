@@ -37,6 +37,7 @@ pg = st.navigation([
     st.Page("pages/2_QA.py", title="QA", icon="📚"),
     st.Page("pages/3_Trip_Planner.py", title="Trip Planner", icon="✈️"),
     st.Page("pages/4_Code_Assistant.py", title="Code Assistant", icon="💻"),
+    st.Page("pages/5_Metrics.py", title="Metrics", icon="📊"),
 ])
 
 pg.run()
