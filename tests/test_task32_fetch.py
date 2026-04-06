@@ -1,12 +1,11 @@
 from pathlib import Path
-import pytest
 from unittest.mock import patch, MagicMock
 
-from corpus import DownloadStatus, Source
-from fetch import download_file
+from task32.corpus import DownloadStatus, Source
+from task32.fetch import download_file
 
 # Test that we skip files that are already downloaded and meet minimum bytes
-def test_skips_existing_file(tmp_path):
+def test_skips_existing_file(tmp_path: Path):
     source = Source(
         id="test_doc",
         url="http://example.com/test.txt",
@@ -45,7 +44,7 @@ def test_downloads_if_file_too_small(tmp_path: Path):
     mock_response.__enter__ = lambda s: mock_response
     mock_response.__exit__ = MagicMock(return_value=False)
 
-    with patch("fetch.httpx.stream", return_value=mock_response):
+    with patch("task32.fetch.httpx.stream", return_value=mock_response):
         from rich.progress import Progress
         with Progress() as progress:
             result = download_file(source=source, dest_dir=tmp_path, progress=progress)
@@ -63,7 +62,7 @@ def test_failed_download_removes_partial_file(tmp_path: Path):
         file_extension=".txt",
     )
 
-    with patch("fetch.httpx.stream", side_effect=Exception("network error")):                                                                 
+    with patch("task32.fetch.httpx.stream", side_effect=Exception("network error")):                                                                 
         from rich.progress import Progress
         with Progress() as progress:                                                                                                          
             result = download_file(source=source, dest_dir=tmp_path, progress=progress)

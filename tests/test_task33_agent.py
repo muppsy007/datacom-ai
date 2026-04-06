@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 
 def test_calculate_total_within_budget():
-    from travel_agent_tools import calculate_total
+    from task33.travel_agent_tools import calculate_total
 
     result = calculate_total(
         items=[{"name": "outbound: QF535", "cost_nzd": 150.0}, {"name": "Museum", "cost_nzd": 28.0}],
@@ -16,7 +16,7 @@ def test_calculate_total_within_budget():
 
 
 def test_calculate_total_removes_cheapest_covering_activity():
-    from travel_agent_tools import calculate_total
+    from task33.travel_agent_tools import calculate_total
 
     # Total: 150 + 150 + 28 + 35 + 85 + 120 = 568, overage = 68
     # Waiheke ($85) is cheapest activity that covers $68 overage
@@ -37,7 +37,7 @@ def test_calculate_total_removes_cheapest_covering_activity():
 
 
 def test_calculate_total_removes_most_expensive_when_no_single_item_covers_overage():
-    from travel_agent_tools import calculate_total
+    from task33.travel_agent_tools import calculate_total
 
     # Total: 150 + 150 + 28 + 35 = 363, overage = 163
     # No single activity covers $163, so most expensive (Sky Tower $35) is NOT it —
@@ -58,7 +58,7 @@ def test_calculate_total_removes_most_expensive_when_no_single_item_covers_overa
 
 
 def test_calculate_total_never_removes_flights():
-    from travel_agent_tools import calculate_total
+    from task33.travel_agent_tools import calculate_total
 
     # Only flights, both over budget — no activities to remove
     result = calculate_total(
@@ -74,7 +74,7 @@ def test_calculate_total_never_removes_flights():
 
 
 def test_dispatch_tool_strips_reasoning():
-    from travel_agent_tools import dispatch_tool
+    from task33.travel_agent_tools import dispatch_tool
 
     result = dispatch_tool(
         "search_attractions",
@@ -87,7 +87,7 @@ def test_dispatch_tool_strips_reasoning():
 
 
 def test_dispatch_tool_search_flights_strips_reasoning():
-    from travel_agent_tools import dispatch_tool
+    from task33.travel_agent_tools import dispatch_tool
 
     result = dispatch_tool(
         "search_flights",
@@ -100,7 +100,7 @@ def test_dispatch_tool_search_flights_strips_reasoning():
 
 
 def test_run_agent_returns_steps_scratchpad_and_itinerary():
-    from travel_agent import run_agent
+    from task33.travel_agent import run_agent
 
     # Build a minimal fake tool call then a final answer
     tool_call = MagicMock()
@@ -138,7 +138,7 @@ def test_run_agent_returns_steps_scratchpad_and_itinerary():
     turn2.choices = [MagicMock(message=final_response)]
     turn2.usage = usage
 
-    with patch("travel_agent.client") as mock_client:
+    with patch("task33.travel_agent.client") as mock_client:
         mock_client.chat.completions.create.side_effect = [turn1, turn2]
         result = run_agent(prompt="Plan a trip", budget_nzd=500.0, db_path="test.db")
 

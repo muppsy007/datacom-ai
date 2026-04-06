@@ -22,12 +22,12 @@ def test_retrieve_returns_correct_number_of_results():
         "included": ["metadatas", "documents", "distances"],
     }
 
-    with patch("retrieval.chroma_client") as mock_client, \
-         patch("retrieval.model") as mock_model:
+    with patch("task32.retrieval.chroma_client") as mock_client, \
+         patch("task32.retrieval.model") as mock_model:
         mock_client.get_collection.return_value = mock_collection
         mock_model.encode.return_value = np.array([0.1] * 384)
 
-        from retrieval import retrieve
+        from task32.retrieval import retrieve
         results = retrieve("What is the white whale?", n_results=5)
 
     assert len(results["ids"][0]) == 5
@@ -49,12 +49,12 @@ def test_retrieve_queries_chroma_with_embedding():
 
     fake_embedding = np.array([0.5] * 384)
 
-    with patch("retrieval.chroma_client") as mock_client, \
-         patch("retrieval.model") as mock_model:
+    with patch("task32.retrieval.chroma_client") as mock_client, \
+         patch("task32.retrieval.model") as mock_model:
         mock_client.get_collection.return_value = mock_collection
         mock_model.encode.return_value = fake_embedding
 
-        from retrieval import retrieve
+        from task32.retrieval import retrieve
         retrieve("Who is Ahab?")
 
     mock_collection.query.assert_called_once_with(
@@ -66,8 +66,8 @@ def test_retrieve_queries_chroma_with_embedding():
 # Test that retrieve() uses get_collection, not get_or_create_collection
 # If the collection doesn't exist, we want an error, not a silent empty collection
 def test_retrieve_uses_get_collection_not_create():
-    with patch("retrieval.chroma_client") as mock_client, \
-         patch("retrieval.model"):
+    with patch("task32.retrieval.chroma_client") as mock_client, \
+         patch("task32.retrieval.model"):
         mock_client.get_collection.return_value = MagicMock()
         mock_client.get_collection.return_value.query.return_value = {
             "ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]],
@@ -75,7 +75,7 @@ def test_retrieve_uses_get_collection_not_create():
             "included": ["metadatas", "documents", "distances"],
         }
 
-        from retrieval import retrieve
+        from task32.retrieval import retrieve
         retrieve("test query")
 
     mock_client.get_collection.assert_called_once_with(name="book_corpus")
