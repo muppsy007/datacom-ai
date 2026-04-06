@@ -7,6 +7,7 @@ request in the metrics database.
 import json
 import os
 import re
+from pathlib import Path
 
 from dotenv import load_dotenv
 from rich.console import Console
@@ -22,7 +23,8 @@ def main():
     load_dotenv()
 
     # Load the db path and connect
-    db_path = os.getenv("CHAT_DB_PATH") or "metrics.db"
+    default_db_path = str(Path(__file__).resolve().parent.parent / "metrics.db")
+    db_path = os.getenv("MAIN_DB_PATH") or default_db_path
     conn = init_db(db_path=db_path)
 
     # As the user what kind of trip they are looking for
