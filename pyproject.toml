@@ -37,4 +37,4 @@ select = [
 quote-style = "double"
 
 [tool.pytest.ini_options]
-pythonpath = [".", "task32", "task33", "task34", "task34/languages"]
+pythonpath = [".", "task31", "task32", "task33", "task34", "task34/languages"]

@@ -11,12 +11,15 @@ def test_init_db_creates_agent_runs_table():
     assert cursor.fetchone() is not None
 
 
-def test_init_db_is_idempotent():
+def test_init_db_is_idempotent(tmp_path):
     from task33.travel_agent_logger import init_db
 
-    # Calling twice on the same connection should not raise
-    conn = init_db(":memory:")
-    init_db(":memory:")
+    db_path = str(tmp_path / "test.db")
+    init_db(db_path)
+    conn = init_db(db_path)
+
+    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='agent_runs'")
+    assert cursor.fetchone() is not None
 
 
 def test_log_run_inserts_row():
