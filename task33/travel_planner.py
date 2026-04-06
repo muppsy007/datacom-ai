@@ -19,6 +19,13 @@ from travel_agent_logger import init_db, log_run
 console = Console()
 prompt = Prompt()
 
+def calculate_cost(prompt_tokens: int, completion_tokens: int) -> float:
+    """Work out the $ cost of the LLM operation after all tool calls.
+    Rates are hardcoded here for observability. In a production system we would manage these in a DB
+    model/cost matrix so costs adjust with model changes"""
+    cost_usd = (prompt_tokens / 1000 * 0.0025) + (completion_tokens / 1000 * 0.01) 
+    return cost_usd
+
 def main():
     load_dotenv()
 
@@ -38,7 +45,11 @@ def main():
     agent_output = run_agent(prompt=user_prompt, budget_nzd=budget, db_path=db_path)
 
     # LOGGING costs and scratchpad
-    console.print(agent_output["steps_scratchpad"])
+    console.rule("[bold cyan]Agent Scratchpad (logged in /metrics.db->agent_runs)")
+    for i, step in enumerate(agent_output["steps_scratchpad"], 1):
+        console.print(f"[bold]Step {i}[/bold] | tool: [yellow]{step['tool']}[/yellow]")
+        console.print(f"  reasoning: {step['reasoning']}")
+    console.rule()
     
     itinerary = json.loads(agent_output["itinerary"])   
     itinerary_actual_cost_nzd = itinerary["actual_cost_nzd"]                                                                                          
@@ -48,25 +59,19 @@ def main():
     constraint_satisfied = int(itinerary["constraint_satisfied"])                                                                                 
     scratchpad = json.dumps(agent_output["steps_scratchpad"])
 
-    log_run(        
-        conn=conn,                                                                                                                                
+    log_run(
+        conn=conn,
         prompt=user_prompt,
         tools=tools_used,
         token_count=token_count,
         estimated_cost=estimated_cost,
         itinerary_actual_cost_nzd=itinerary_actual_cost_nzd,
         constraint_satisfied=constraint_satisfied,
-        scratchpad=scratchpad,                                                                                                                    
+        scratchpad=scratchpad,
     )
 
-
-def calculate_cost(prompt_tokens: int, completion_tokens: int) -> float:
-    """Work out the $ cost of the LLM operation after all tool calls.
-    Rates are hardcoded here for observability. In a production system we would manage these in a DB
-    model/cost matrix so costs adjust with model changes"""
-    cost_usd = (prompt_tokens / 1000 * 0.0025) + (completion_tokens / 1000 * 0.01) 
-    return cost_usd
-
+    console.rule("[bold cyan]Itinerary")
+    console.print_json(json.dumps(itinerary))
 
 if __name__ == "__main__":
     main()
