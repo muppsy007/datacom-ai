@@ -1,9 +1,16 @@
 import streamlit as st
 
-from task32.qa import ask_question, create_client
-
 st.title("QA")
 st.caption("Task 3.2 — RAG Question Answering")
+
+
+@st.cache_resource(show_spinner="Loading embedding model...")
+def load_qa_module():
+    from task32.qa import ask_question, create_client
+    return ask_question, create_client
+
+
+ask_question, create_client = load_qa_module()
 
 EXAMPLES = [
     "What is the optimal tyre pressure for a Holden Colorado?",
