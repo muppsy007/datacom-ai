@@ -20,7 +20,7 @@ cd datacom-ai
 
 2. Create `.env` from the sample and add your credentials
 ```bash
-cp .env.sample .env
+cp .env.example .env
 ```
 
 3. Create a virtual environment and install dependencies
