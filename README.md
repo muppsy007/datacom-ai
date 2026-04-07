@@ -45,6 +45,9 @@ python task32/ingest.py
 ```
 
 ### Run Streamlit UI via Docker
+
+All task solutions, plus the stretch goal can be interacted with via a Streamlit app
+
 ```bash
 docker compose up --build
 ```
@@ -53,7 +56,7 @@ Visit: http://localhost:8501/
 
 > Note: The corpus must be ingested locally before starting Docker. Docker mounts the data directory from your local machine.
 
-## All tasks can also be run from CLI
+### [OPTIONAL] All tasks can also be run from CLI
 
 ```bash
 # Task 3.1 - Chat
