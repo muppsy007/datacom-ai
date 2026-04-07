@@ -4,6 +4,7 @@ The primary Question Answering service.  Given a question, this retrieves the mo
 from the corpus. Then we will send the question with passages to our LLM to generate an answer
 with citations.
 '''
+import json
 import os
 import time
 
@@ -12,7 +13,7 @@ from openai import OpenAI
 from rich.console import Console
 from rich.prompt import Prompt
 
-from retrieval import retrieve
+from retrieval import retrieve, save_retrieval_run
 
 console = Console()
 prompt = Prompt()
@@ -39,9 +40,13 @@ def ask_question(question: str, client: OpenAI) -> dict:
 
     Returns a dict with keys: answer, sources, retrieve_ms, llm_ms
     """
-    start = time.time()
-    results = retrieve(question)
-    retrieve_ms = (time.time() - start) * 1000
+    results, retrieve_ms = retrieve(question)
+    returned_source_ids = [meta["source_id"] for meta in results["metadatas"][0]] if results["metadatas"] and results["metadatas"][0] else []
+    save_retrieval_run(
+        query=question,
+        latency_ms=retrieve_ms,
+        returned_sources=json.dumps(returned_source_ids),
+    )
 
     if not results["documents"] or not results["metadatas"]:
         return {

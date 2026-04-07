@@ -28,9 +28,10 @@ def test_retrieve_returns_correct_number_of_results():
         mock_model.encode.return_value = np.array([0.1] * 384)
 
         from task32.retrieval import retrieve
-        results = retrieve("What is the white whale?", n_results=5)
+        results, latency_ms = retrieve("What is the white whale?", n_results=5)
 
     assert len(results["ids"][0]) == 5
+    assert latency_ms >= 0
 
 
 # Test that retrieve() passes the query embedding to Chroma
@@ -80,3 +81,50 @@ def test_retrieve_uses_get_collection_not_create():
 
     mock_client.get_collection.assert_called_once_with(name="book_corpus")
     mock_client.get_or_create_collection.assert_not_called()
+
+
+# Test that save_retrieval_run writes a record to the database
+def test_save_retrieval_run_inserts_record(tmp_path):
+    import sqlite3
+    db_path = str(tmp_path / "test_metrics.db")
+
+    with patch.dict("os.environ", {"DB_PATH": db_path}):
+        from task32.retrieval import save_retrieval_run
+        save_retrieval_run(
+            query="test question",
+            latency_ms=42.5,
+            source="evaluate",
+            passed=1,
+            returned_sources='["moby_dick"]',
+        )
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT * FROM retrieval_runs").fetchall()
+    conn.close()
+
+    assert len(rows) == 1
+    assert rows[0]["query"] == "test question"
+    assert rows[0]["latency_ms"] == 42.5
+    assert rows[0]["source"] == "evaluate"
+    assert rows[0]["passed"] == 1
+    assert rows[0]["returned_sources"] == '["moby_dick"]'
+
+
+# Test that save_retrieval_run leaves passed/returned_sources null when not provided
+def test_save_retrieval_run_nullable_fields(tmp_path):
+    import sqlite3
+    db_path = str(tmp_path / "test_metrics.db")
+
+    with patch.dict("os.environ", {"DB_PATH": db_path}):
+        from task32.retrieval import save_retrieval_run
+        save_retrieval_run(query="test question", latency_ms=10.0)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT * FROM retrieval_runs").fetchall()
+    conn.close()
+
+    assert len(rows) == 1
+    assert rows[0]["passed"] is None
+    assert rows[0]["returned_sources"] is None

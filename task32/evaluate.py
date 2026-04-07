@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from retrieval import retrieve
+from retrieval import retrieve, save_retrieval_run
 from rich.console import Console
 from rich.table import Table
 
@@ -24,13 +24,21 @@ def evaluate(question_path: str = str(Path(__file__).resolve().parent / "eval" /
     total_questions = len(question_data)
     for question in question_data:
         # Get the result for the question and pull the source_ids
-        results = retrieve(question["question"])
+        results, latency_ms = retrieve(question["question"])
         returned_source_ids = [meta["source_id"] for meta in results["metadatas"][0]] # type: ignore
 
         # A pass is if the expected source is found in at least one of the result sources
         passed = source_matched(question, results)
         if passed:
             total_passed += 1
+
+        save_retrieval_run(
+            query=question["question"],
+            latency_ms=latency_ms,
+            source="evaluate",
+            passed=1 if passed else 0,
+            returned_sources=json.dumps(returned_source_ids),
+        )
 
         results_list.append({
             "question": question["question"],

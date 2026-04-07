@@ -2,6 +2,7 @@
 Task 3.2 - RAG QA
 The main query file. Use a question to retrieve closest matches from the corpus
 '''
+import json
 import logging
 import os
 import sqlite3
@@ -32,6 +33,8 @@ def init_retrieval_db(db_path: str) -> sqlite3.Connection:
             query TEXT,
             latency_ms REAL,
             source TEXT,
+            passed INTEGER,
+            returned_sources TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -42,7 +45,24 @@ def init_retrieval_db(db_path: str) -> sqlite3.Connection:
 _default_db_path = str(Path(__file__).resolve().parent.parent / "metrics.db")
 
 
-def retrieve(query: str, n_results: int = 5, source: str = "qa") -> QueryResult:
+def save_retrieval_run(
+    query: str,
+    latency_ms: float,
+    source: str = "qa",
+    passed: int | None = None,
+    returned_sources: str | None = None,
+) -> None:
+    """Write a retrieval run record to the database."""
+    conn = init_retrieval_db(os.getenv("DB_PATH") or _default_db_path)
+    conn.execute(
+        "INSERT INTO retrieval_runs (query, latency_ms, source, passed, returned_sources) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (query, latency_ms, source, passed, returned_sources),
+    )
+    conn.commit()
+
+
+def retrieve(query: str, n_results: int = 5) -> tuple[QueryResult, float]:
     start = time.perf_counter()
 
     collection = chroma_client.get_collection(name="book_corpus")
@@ -51,20 +71,17 @@ def retrieve(query: str, n_results: int = 5, source: str = "qa") -> QueryResult:
 
     latency_ms = (time.perf_counter() - start) * 1000
 
-    # need to instantiate the question per retreival to avoid SQLite thread errors
-    conn = init_retrieval_db(os.getenv("DB_PATH") or _default_db_path)
-    conn.execute(
-        "INSERT INTO retrieval_runs (query, latency_ms, source) VALUES (?, ?, ?)",
-        (query, latency_ms, source),
-    )
-    conn.commit()
-
-    return results
+    return results, latency_ms
 
 def main():
-    start = time.time()
-    results = retrieve("Did Ahab ever catch the whale?")
-    console.print(f"Query time: {(time.time() - start) * 1000:.0f}ms")  
+    results, latency_ms = retrieve("Did Ahab ever catch the whale?")
+    returned_source_ids = [meta["source_id"] for meta in results["metadatas"][0]]
+    save_retrieval_run(
+        query="Did Ahab ever catch the whale?",
+        latency_ms=latency_ms,
+        returned_sources=json.dumps(returned_source_ids),
+    )
+    console.print(f"Query time: {latency_ms:.0f}ms")
     console.print(results)
 
 if __name__ == "__main__":
