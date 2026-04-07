@@ -1,5 +1,6 @@
 import streamlit as st
 
+from pages.metrics.agent import render_agent_tab
 from pages.metrics.chat import render_chat_tab
 from pages.metrics.retrieval import render_retrieval_tab
 
@@ -17,4 +18,4 @@ with tab_retrieval:
     render_retrieval_tab()
 
 with tab_agents:
-    st.info("No data available")
+    render_agent_tab()

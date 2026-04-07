@@ -55,6 +55,7 @@ def plan_trip(user_prompt: str) -> dict:
         tools=", ".join(s["tool"] for s in agent_output["steps_scratchpad"]),
         token_count=token_count,
         estimated_cost=estimated_cost,
+        budget_nzd=budget,
         itinerary_actual_cost_nzd=itinerary["actual_cost_nzd"],
         constraint_satisfied=int(itinerary["constraint_satisfied"]),
         scratchpad=json.dumps(agent_output["steps_scratchpad"]),
