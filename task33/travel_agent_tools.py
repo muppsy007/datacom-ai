@@ -224,6 +224,9 @@ TOOLS: dict[str, Any] = {
 }
 
 def dispatch_tool(name:str, arguments_json: str)-> str:
+    # Important, make sure the tool call is a valid one. Low risk but user could force LLM to call arbitary funciton names like delete_all()
+    if name not in TOOLS:
+        raise ValueError(f"Unknown tool requested: {name}")
     args = json.loads(arguments_json)
     args.pop("reasoning", None) 
-    return json.dumps(TOOLS[name](**args)) 
+    return json.dumps(TOOLS[name](**args))
