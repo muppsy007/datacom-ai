@@ -13,8 +13,8 @@ from dotenv import load_dotenv
 from rich.console import Console
 from rich.prompt import Prompt
 
-from travel_agent import run_agent
-from travel_agent_logger import init_db, log_run
+from task33.travel_agent import run_agent
+from task33.travel_agent_logger import init_db, log_run
 
 console = Console()
 prompt = Prompt()

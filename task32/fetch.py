@@ -13,7 +13,7 @@ import httpx
 from rich.console import Console
 from rich.progress import BarColumn, DownloadColumn, Progress, TextColumn
 
-from corpus import SOURCES, DownloadStatus, Source
+from task32.corpus import SOURCES, DownloadStatus, Source
 
 console = Console()
 

@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from retrieval import retrieve, save_retrieval_run
+from task32.retrieval import retrieve, save_retrieval_run
 from rich.console import Console
 from rich.table import Table
 
@@ -83,4 +83,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

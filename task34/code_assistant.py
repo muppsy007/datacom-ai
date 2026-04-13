@@ -13,9 +13,9 @@ from rich.syntax import Syntax
 
 from collections.abc import Generator
 
-from code_generator import detect_language, generate_code
-from executor import run
-from models import AttemptResult
+from task34.code_generator import detect_language, generate_code
+from task34.executor import run
+from task34.models import AttemptResult
 
 dotenv.load_dotenv()
 

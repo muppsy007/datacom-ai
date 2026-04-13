@@ -13,7 +13,7 @@ from openai import OpenAI
 from rich.console import Console
 from rich.prompt import Prompt
 
-from retrieval import retrieve, save_retrieval_run
+from task32.retrieval import retrieve, save_retrieval_run
 
 console = Console()
 prompt = Prompt()
